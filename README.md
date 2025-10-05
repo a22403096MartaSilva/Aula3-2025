@@ -1,94 +1,96 @@
-# Aula 3 / Sistemas Operativos – 2025  
-**Repositório:** Aula3-2025  
-**Instituição:** ULHT  - Universidade Lusófona
+# Scheduler Simulator
 
+The objective of this project is to simulate various CPU scheduling algorithms and
+analyze their performance based on different metrics. The simulator allows users to
+input a set of processes with their respective arrival times, burst times, and priorities,
+and then applies different scheduling algorithms to determine the order of execution.
 
----
+## Message Format
+Each message sends the application PID, the message request type and a time parameter.
+Since we are using Unix Domain Sockets (sender and receiver on the same machine), we can
+safely pass structs between the application and the simulator.
 
-## Descrição
+### Messages from the application to the simulator:
+The messages from the application to the simulator (RUN/BLOCK) send the time in ms
+that the process requests the CPU or the I/O device.
+Although this is not completely realistic, it simplifies the implementation of the simulator
+and allows us to focus on the scheduling algorithms.
 
-Este repositório contém o código de base para a Aula 3 da disciplina de **Sistemas Operativos (2025)**. O objetivo é fornecer aos alunos uma estrutura de simulador de escalonador FIFO, com uma aplicação “Hello World” inicial e um scheduler já parcialmente implementado. Serve de ponto de partida para que os alunos aprendam:
+### Messages from the simulator to the application:
+The messages from the simulator to the application (ACK/EXIT) send the current time in ms
+in the simulation ("wall clock"). This allows the application to keep track of the time even if
+we take some time debugging the code.
 
-- a clonar um repositório GitHub;  
-- a compilar e testar um programa “Hello World”;  
-- a integrar um scheduler (FIFO) no projeto;  
-- a configurar deployment remoto para sincronização automática de ficheiros com um servidor Linux.
+## Time Diagram
+The time diagram below illustrates the interaction between the application and the simulator:
 
----
+```
+Simulator                           Applications
+   |                                    |
+   | <---- App1 RUN (run time) -------- |
+   |                                    |
+   | ---- App1 ACK (current time) ----> |
+   |                                    |
+   | <---- App2 RUN (run time) -------- |
+   |                                    |
+   | ---- App2 ACK (current time) ----> |
+   |                                    |
+   | ---- App1 DONE (current time) ---> |   --> App 1 prints its statistics and terminates
+   |                                    |
+   | ---- App2 DONE (current time) ---> |   --> App 2 prints its statistics and terminates
+   |
+ (keeps running)
+   ```
 
-## Estrutura do repositório
+## Scheduling Algorithms
 
-| Pasta / Ficheiro | Descrição |
-|------------------|-----------|
-| `main.c` / `hello_world.c` | Programa simples “Hello World”. Usado para confirmar que o ambiente está a funcionar correctamente. |
-| `scheduler/` | Pasta com código relacionado ao escalonador FIFO. Contém implementação do FIFO, filas de processos, bursts, etc. |
-| `queue.h` / `queue.c` | Estruturas de dados para filas de processos (FIFO). |
-| `burst_queue.h` / `burst_queue.c` | Gestão dos bursts (CPU / I/O) de cada processo. |
-| `fifo.h` / `fifo.c` | Lógica do escalonador FIFO. Recebe processos pela ordem de chegada e os executa sem preempção. |
-| `app.c`, `app-pre.c` | Exemplos de aplicações / tarefas para simulação de carga de trabalho. |
-| `CMakeLists.txt` | Ficheiro de configuração para construir o projecto usando CMake. |
-| `run_apps.sh` | Script para compilar e executar a simulação facilmente no Linux. |
-| `README.md` | Este ficheiro, com instruções e contexto. |
+### FIFO (First In First Out)
+The FIFO scheduling algorithm processes tasks in the order they arrive. The first task to arrive is the
+first to be executed.
+This is already implemented in the simulator.
 
----
+### SJF (Shortest Job First)
+The SJF scheduling algorithm selects the task with the shortest burst time to execute next.
 
-## Guião de utilização
+### Round Robin
+The Round Robin scheduling algorithm assigns a fixed time slice to each task in the queue. Each task
+is executed for a maximum of the time slice before being moved to the back of the queue.
+In the simulator, create a first version of Round Robin with a time slice of 0.5s.
 
-Aqui ficam os passos que vamos seguir em aula (conforme o guião):
+### MLFQ (Multi-Level Feedback Queue)
+The MLFQ scheduling algorithm uses multiple queues with different priority levels. The app to be used
+here is app-pre, which not only sends burst times, but also block times. The app-pre has a filename as
+command line argument, which contains on each line the burst time and the block time (in ms) of each cycle.
+Start by using time-slices of 0.5s.
 
-1. **Clonar o repositório**  
-   `git clone https://github.com/ULHT-SistemasOperativos/Aula3-2025.git`
+Hint: The diagram used here is slightly different from the one used in class, as it includes not only RUN
+messages, but also BLOCK messages. The BLOCK messages are used to simulate I/O operations.
 
-2. **Compilar e correr o “Hello World”**  
-   - Abrir o projeto em CLion (ou outro IDE) ou terminal;  
-   - Compilar com CMake;  
-   - Executar o programa principal (`main.c` ou ficheiro equivalente).  
-
-3. **Explorar o scheduler e os seus componentes**  
-   - Verificar `scheduler/`, `fifo.c`, `queue.c`, `burst_queue.c`, etc;  
-   - Entender como os processos e bursts são definidos nas apps;  
-   - Ver como FIFO gere a ordem de execução.  
-
-4. **Configurar Deployment remoto em CLion**  
-   - Ir a *Settings → Build, Execution, Deployment → Deployment*;  
-   - Criar uma configuração SFTP para o servidor Linux;  
-   - Em *Mappings*, definir o caminho local do projeto e o caminho remoto correspondente.  
-
-5. **Testar sincronização**  
-   - Criar ou adicionar ficheiros no CLion;  
-   - Verificar que aparecem no servidor Linux;  
-   - Executar o scheduler para confirmar que tudo funciona integrado.  
-
----
-
-## Como contribuir / modificar
-
-- Se quiserem experimentar outros algoritmos de escalonamento (ex: Round Robin, SJF, etc.), podem criar novas pastas ou ficheiros dentro de `scheduler/` seguindo a interface definida por `fifo.h`.  
-- Testem com diferentes cargas de trabalho modificando `app.c` ou `app-pre.c`.  
-- Verifiquem os tempos de bursts, espera, tempo total de execução, etc, para comparar desempenho entre algoritmos.
-
----
-
-## Requisitos e dependências
-
-- CLion (ou outra IDE com suporte a C / CMake)  
-- GCC ou clang / compilador de C compatível  
-- Sistema Linux ou servidor remoto com acesso via SSH/SFTP (para deployment)  
-- Acesso à internet (para clonar o repositório)  
-
----
-
-## Licença
-
-(Indicar aqui a licença, se aplicável — exemplo: MIT, GPL, etc.)
-
----
-
-## Autor / Contacto
-
-- Docentes: Paulo Guedes, Martijn Kuipers, Daniel Silveira
-- Email: p4693@ulusofona.pt, martijn.kuipers@ulusofona.pt, p6902@ulusofona.pt
-- Versão: 1.0 (início do semestre 2025)
-
----
+```
+Simulator                           Applications
+   |                                    |
+   | <---- App1 RUN (run time) -------- |
+   |                                    |
+   | ---- App1 ACK (current time) ----> |
+   |                                    |
+   | <---- App2 RUN (run time) -------- |
+   |                                    |
+   | ---- App2 ACK (current time) ----> |
+   |                                    |
+   | ---- App1 DONE (current time) ---> | 
+   |                                    |
+   | <---- App1 BLOCK (run time) ------ |
+   |                                    |
+   | ---- App1 ACK (current time) ----> |
+   |                                    |
+   | ---- App2 DONE (current time) ---> | 
+   |                                    |
+   | <---- App2 BLOCK (run time) ------ |
+   |                                    |
+   | ---- App2 ACK (current time) ----> |
+   |                                    |
+   | ---- App1 DONE (current time) ---> | 
+   |                                    |
+   | ---- App2 DONE (current time) ---> | 
+```
 
